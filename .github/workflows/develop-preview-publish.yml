@@ -99,11 +99,21 @@ jobs:
 
     - name: Test install from Test PyPI
       run: |
-        # New uploads can take a moment to index.
-        sleep 30
-        pip install --index-url https://test.pypi.org/simple/ \
-            --extra-index-url https://pypi.org/simple/ \
-            "securevector-guardian-model==$DEV_VERSION"
+        # Test PyPI's simple index can lag a freshly-uploaded version by a
+        # few minutes — retry instead of failing the run on propagation lag.
+        for i in 1 2 3 4 5 6; do
+          if pip install --index-url https://test.pypi.org/simple/ \
+              --extra-index-url https://pypi.org/simple/ \
+              "securevector-guardian-model==$DEV_VERSION"; then
+            break
+          fi
+          if [ "$i" = "6" ]; then
+            echo "Version $DEV_VERSION still not installable after ~5 minutes"
+            exit 1
+          fi
+          echo "Index not propagated yet (attempt $i), retrying in 50s..."
+          sleep 50
+        done
         python -c "
         from svguardian.model.pure_infer import PureGuardian
         from svguardian.serve import analyze
