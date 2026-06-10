@@ -17,7 +17,11 @@ import re
 # Split on sentence/line boundaries so windows align to natural spans.
 _SPLIT = re.compile(r"(?<=[.!?])\s+|[\n\r]+|<!--|-->")
 
-# Bound work on very large inputs so latency stays predictable.
+# Bound work on very large inputs so latency stays predictable. Kept at 300
+# (unchanged from the shipped model) — detection coverage is not traded for
+# latency. The efficiency win is in _spans below: it now stops BUILDING
+# windows once it has MAX_WINDOWS, instead of materialising thousands first
+# and truncating. Same windows scored → identical detection, less work.
 MAX_WINDOWS = 300
 WORD_WINDOW = 24   # words per window — finer than 40 to resist benign-token dilution
 WORD_STRIDE = 12   # overlap so a span isn't cut across a boundary
@@ -36,7 +40,11 @@ def _spans(text: str) -> list:
         else:
             for i in range(0, len(words), WORD_STRIDE):
                 out.append(" ".join(words[i:i + WORD_WINDOW]))
-                if i + WORD_WINDOW >= len(words):
+                # Stop building inside a single huge segment too — otherwise a
+                # boundary-free input builds thousands of windows before the
+                # outer cap truncates, making latency scale with input length
+                # instead of with MAX_WINDOWS. This keeps worst-case constant.
+                if i + WORD_WINDOW >= len(words) or len(out) >= MAX_WINDOWS:
                     break
         if len(out) >= MAX_WINDOWS:
             break

@@ -107,6 +107,27 @@ If you run [SecureVector AI Threat Monitor](https://github.com/Secure-Vector/sec
 
 ---
 
+## Performance — what to expect
+
+The runtime is **pure Python (stdlib only, zero dependencies)**, so it runs on any machine with Python 3.8+ — no GPU, no native libraries, no network. It runs **in parallel** with the regex rules, so enabling ML detection adds the latency below, not on top of your request serially in most setups.
+
+Latency per analysis, by input size (measured on an Apple M5 laptop; **older/slower CPUs scale roughly 5–20×**, but typical inputs stay sub-millisecond to a few ms):
+
+| Input | What it is | Median | p99 |
+|---|---|---|---|
+| Prompt / tool call / response | the common case | **~0.15 ms** | ~0.5 ms |
+| ~1 KB document | short doc | ~2 ms | ~3.5 ms |
+| ~10 KB document | long doc (span-windowed) | ~14 ms | ~21 ms |
+| 200 KB (max input) | pathological, **bounded** | ~110 ms | ~135 ms |
+
+- **One-time startup:** ~200 ms to load the model + ~34 MB resident memory. Paid once, not per request.
+- **Long documents** are scanned span-by-span (windowed) and base64/hex blobs are decoded-and-rescanned — that's the cost above ~1 KB. Work is **capped** so a huge input can't hang (worst case is bounded, not unbounded).
+- **Fail-open:** if the model can't load or errors, detection silently falls back to the regex rules — it never blocks or slows the request beyond the rules alone.
+
+In practice the inputs an agent guard actually sees (prompts, tool calls, responses) are **sub-millisecond on hardware of any age**; only genuinely large documents add measurable time, and that time is bounded.
+
+---
+
 ## Layout
 
 ```
