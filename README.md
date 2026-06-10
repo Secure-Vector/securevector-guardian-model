@@ -1,6 +1,7 @@
 # SecureVector Guardian
 
 [![PyPI](https://img.shields.io/pypi/v/securevector-guardian-model)](https://pypi.org/project/securevector-guardian-model/)
+[![Downloads](https://img.shields.io/pypi/dm/securevector-guardian-model)](https://pypistats.org/packages/securevector-guardian-model)
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://pypi.org/project/securevector-guardian-model/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
 
