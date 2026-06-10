@@ -93,26 +93,6 @@ jobs:
     - name: Check package
       run: twine check dist/*
 
-    - name: Print OIDC claims (diagnostic)
-      # Decodes the identity token GitHub mints for this run and prints the
-      # claims PyPI matches publishers against — removes all guesswork when a
-      # publisher entry doesn't line up.
-      run: |
-        TOKEN_JSON=$(curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
-          "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=testpypi")
-        PAYLOAD=$(echo "$TOKEN_JSON" | python3 -c "
-        import json, sys, base64
-        tok = json.load(sys.stdin)['value']
-        p = tok.split('.')[1]
-        p += '=' * (-len(p) % 4)
-        claims = json.loads(base64.urlsafe_b64decode(p))
-        for k in ('repository', 'repository_owner', 'workflow_ref',
-                  'job_workflow_ref', 'environment', 'ref'):
-            print(f'{k}: {claims.get(k, \"<absent>\")}')
-        ")
-        echo "=== OIDC claims PyPI sees ==="
-        echo "$PAYLOAD"
-
     - name: Publish to Test PyPI (trusted publishing)
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
