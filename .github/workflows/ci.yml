@@ -30,7 +30,7 @@ jobs:
         pip install -e .[train] pytest
 
     - name: Run tests
-      # Model-dependent suites (behavior / parity / red-team) skip themselves
+      # Model-dependent suites (behavior / parity) skip themselves
       # when models/guardian.joblib is absent — the trained artifacts are
       # never in source control, so CI exercises the code paths that don't
       # need weights (and the full suite runs locally where models/ exists).
