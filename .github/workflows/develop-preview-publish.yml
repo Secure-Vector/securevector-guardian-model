@@ -2,6 +2,8 @@ name: Develop Branch Preview Publish
 
 # Mirrors the ai-threat-monitor flow: every push to develop publishes a
 # timestamped dev build to Test PyPI under a separate -dev package name.
+# Publishes via trusted publishing (OIDC) — no API token; the publisher is
+# registered on test.pypi.org scoped to exactly this repo + workflow.
 
 on:
   push:
@@ -11,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  id-token: write  # Test PyPI trusted publishing
 
 jobs:
   test-publish:
@@ -90,17 +93,10 @@ jobs:
     - name: Check package
       run: twine check dist/*
 
-    - name: Publish to Test PyPI
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
-        TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
-      run: |
-        if [ -z "$TWINE_PASSWORD" ]; then
-          echo "ERROR: TEST_PYPI_API_TOKEN secret is not set"
-          exit 1
-        fi
-        python -m twine upload --verbose dist/*
+    - name: Publish to Test PyPI (trusted publishing)
+      uses: pypa/gh-action-pypi-publish@release/v1
+      with:
+        repository-url: https://test.pypi.org/legacy/
 
     - name: Test install from Test PyPI
       run: |
