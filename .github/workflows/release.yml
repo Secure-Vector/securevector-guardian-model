@@ -1,0 +1,80 @@
+name: Release
+
+# Mirrors the ai-threat-monitor flow: publishing a GitHub Release (tag vX.Y.Z
+# on main) builds and publishes `svguardian` to PyPI via trusted publishing
+# (OIDC — no long-lived API key in this repo).
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: release
+
+    permissions:
+      contents: read
+      id-token: write  # PyPI trusted publishing
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine wheel
+
+    - name: Strip private training surface
+      # Runtime only — same rule as the develop preview publish: the training
+      # pipeline and eval suites never ship in a public index artifact.
+      run: |
+        rm -rf src/svguardian/data src/svguardian/eval
+        rm -f src/svguardian/model/train.py \
+              src/svguardian/model/compare.py \
+              src/svguardian/model/infer.py \
+              src/svguardian/model/export.py
+        echo "Remaining published modules:"
+        find src/svguardian -name "*.py" | sort
+
+    - name: Set version from release tag
+      run: |
+        TAG="${GITHUB_REF_NAME#v}"
+        sed -i "s/^version = \".*\"/version = \"$TAG\"/" pyproject.toml
+        echo "Publishing svguardian==$TAG"
+
+    - name: Security scan before build
+      run: |
+        if grep -r -i --exclude-dir=.git \
+           -E "\b(password|secret|private.*key)\s*[:=]\s*['\"][^'\"]{10,}" src/; then
+          echo "Potential secrets found in source code!"
+          exit 1
+        fi
+        if find . -name "*.joblib" -o -name "*.runtime.json.gz" -o -name "dataset*.jsonl" | grep -q .; then
+          echo "Trained artifacts or datasets present in build tree!"
+          exit 1
+        fi
+        echo "Security scan passed"
+
+    - name: Pre-build validation
+      run: |
+        PYTHONPATH=src python3 -c "
+        from svguardian.model.pure_infer import PureGuardian
+        from svguardian.serve import analyze
+        from svguardian import cli, server, window, decode
+        print('All runtime imports successful (stdlib-only)')
+        "
+
+    - name: Build package
+      run: python -m build
+
+    - name: Check package
+      run: twine check dist/*
+
+    - name: Publish to PyPI (trusted publishing)
+      uses: pypa/gh-action-pypi-publish@release/v1

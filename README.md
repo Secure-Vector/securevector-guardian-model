@@ -118,6 +118,18 @@ tests/         behavioral + sklearn-parity tests
 - Guardian is a **high-precision additive layer** over the regex rules, not a replacement — it adds the obfuscated/paraphrased catches at low false-positive rate. It is **not** a frontier-model competitor; it runs where a large model can't (every call, offline, on a laptop).
 - It's a **semantic vote** into the existing verdict gate: it can corroborate a firing rule at a low confidence bar, or block on its own only at a high one.
 
+## Branching & releases
+
+Same flow as `securevector-ai-threat-monitor`:
+
+| Branch / event | What happens |
+|---|---|
+| PR → `develop` | CI runs the test suite (model-dependent suites skip — weights are never in source control) |
+| merge → `develop` | CI publishes a timestamped preview build **`svguardian-dev`** to **Test PyPI** |
+| GitHub Release (`vX.Y.Z` tag on `main`) | CI publishes **`svguardian`** to **PyPI** via trusted publishing |
+
+Day-to-day work lands on `develop`; `main` only moves by merging a release-ready `develop`. Published packages contain the **runtime only** — the training pipeline (`data/`, `eval/`, `model/train|compare|infer|export`) is stripped at build time and never ships, and the trained weights are distributed separately (vendored into the app / release assets).
+
 ## License
 
 See [LICENSE](LICENSE). Built only on permissively-licensed open-source libraries (scikit-learn, NumPy, SciPy — BSD; PyYAML, joblib — MIT). No third-party model weights; all weights are trained from scratch on SecureVector's own data.

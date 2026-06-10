@@ -1,0 +1,116 @@
+name: Develop Branch Preview Publish
+
+# Mirrors the ai-threat-monitor flow: every push to develop publishes a
+# timestamped dev build to Test PyPI under a separate -dev package name.
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.10"
+
+    - name: Install build dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build twine wheel
+
+    - name: Strip private training surface
+      # The published package is the RUNTIME ONLY (stdlib, zero deps). The
+      # training pipeline — dataset builders, augmentation templates, train /
+      # bake-off / export code, eval suites — stays in the private repo and
+      # must never ship in a public index artifact ("how we train" does not
+      # leak). The trained weights are likewise distributed separately.
+      run: |
+        rm -rf src/svguardian/data src/svguardian/eval
+        rm -f src/svguardian/model/train.py \
+              src/svguardian/model/compare.py \
+              src/svguardian/model/infer.py \
+              src/svguardian/model/export.py
+        echo "Remaining published modules:"
+        find src/svguardian -name "*.py" | sort
+
+    - name: Generate development version
+      run: |
+        # PEP 440 dev version: 0.0.1.devYYYYMMDDHHMMSS
+        TIMESTAMP=$(date +%Y%m%d%H%M%S)
+        BASE_VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+        DEV_VERSION="${BASE_VERSION}.dev${TIMESTAMP}"
+        echo "DEV_VERSION=$DEV_VERSION" >> $GITHUB_ENV
+
+        sed -i "s/^version = \".*\"/version = \"$DEV_VERSION\"/" pyproject.toml
+        # Separate Test PyPI project so dev builds never collide with the
+        # real package name.
+        sed -i 's/^name = "svguardian"/name = "svguardian-dev"/' pyproject.toml
+        sed -i 's/^description = "/description = "[DEVELOPMENT BUILD] /' pyproject.toml
+
+        echo "Publishing svguardian-dev==$DEV_VERSION (commit $(git rev-parse --short HEAD))"
+
+    - name: Security scan before build
+      run: |
+        echo "Scanning for potential secrets before publishing..."
+        if grep -r -i --exclude-dir=.git \
+           -E "\b(password|secret|private.*key)\s*[:=]\s*['\"][^'\"]{10,}" src/; then
+          echo "Potential secrets found in source code!"
+          exit 1
+        fi
+        # Belt-and-braces: no model weights or datasets in the build tree.
+        if find . -name "*.joblib" -o -name "*.runtime.json.gz" -o -name "dataset*.jsonl" | grep -q .; then
+          echo "Trained artifacts or datasets present in build tree!"
+          exit 1
+        fi
+        echo "Security scan passed"
+
+    - name: Pre-build validation
+      run: |
+        PYTHONPATH=src python3 -c "
+        from svguardian.model.pure_infer import PureGuardian
+        from svguardian.serve import analyze
+        from svguardian import cli, server, window, decode
+        print('All runtime imports successful (stdlib-only)')
+        "
+
+    - name: Build package
+      run: python -m build
+
+    - name: Check package
+      run: twine check dist/*
+
+    - name: Publish to Test PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+        TWINE_REPOSITORY_URL: https://test.pypi.org/legacy/
+      run: |
+        if [ -z "$TWINE_PASSWORD" ]; then
+          echo "ERROR: TEST_PYPI_API_TOKEN secret is not set"
+          exit 1
+        fi
+        python -m twine upload --verbose dist/*
+
+    - name: Test install from Test PyPI
+      run: |
+        # New uploads can take a moment to index.
+        sleep 30
+        pip install --index-url https://test.pypi.org/simple/ \
+            --extra-index-url https://pypi.org/simple/ \
+            "svguardian-dev==$DEV_VERSION"
+        python -c "
+        from svguardian.model.pure_infer import PureGuardian
+        from svguardian.serve import analyze
+        print('Installed package imports cleanly — runtime is dependency-free')
+        "
