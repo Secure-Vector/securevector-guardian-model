@@ -1,6 +1,10 @@
 # SecureVector Guardian
 
-**A lightweight, fast, fully-offline model that detects prompt & AI attacks — and returns the same response your app already understands.**
+[![PyPI](https://img.shields.io/pypi/v/securevector-guardian-model)](https://pypi.org/project/securevector-guardian-model/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue)](https://pypi.org/project/securevector-guardian-model/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green)](LICENSE)
+
+**A lightweight, fast, fully-offline model that detects prompt & AI attacks — and returns the same response securevector-app fully understands.**
 
 Guardian is an original, from-scratch classifier (trained only on SecureVector's own data, with no third-party model weights). It catches the **obfuscated and paraphrased** attacks that literal regex rules miss — including threats **buried in long emails / PDFs / webpages** and hidden inside **base64 / hex-encoded** blobs — in well under a millisecond, on CPU, with no network.
 
@@ -49,7 +53,7 @@ pip install securevector-guardian-model
 
 The distribution name is `securevector-guardian-model`; the **import name is `svguardian`**.
 
-**2. Get the model bundle.** Download `guardian.runtime.json.gz` (~1.8 MB) from the [latest release](../../releases) and tell Guardian where it is — either pass `--runtime <path>` or set it once:
+**2. Get the model bundle.** Download `guardian.runtime.json.gz` (~1.8 MB) from the [latest release](https://github.com/Secure-Vector/securevector-guardian-model/releases) and tell Guardian where it is — either pass `--runtime <path>` or set it once:
 
 ```bash
 export SV_GUARDIAN_RUNTIME=/path/to/guardian.runtime.json.gz
