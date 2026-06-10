@@ -19,14 +19,9 @@ import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from ._bundle import resolve_runtime
 from .model.pure_infer import PureGuardian
 from .serve import analyze
-
-DEFAULT_RUNTIME = os.environ.get(
-    "SV_GUARDIAN_RUNTIME",
-    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                 "models", "guardian.runtime.json.gz"),
-)
 
 MAX_BODY_BYTES = 1 << 20   # 1 MiB request-body cap (DoS guard)
 MAX_TEXT_CHARS = 200_000   # bound the text handed to the classifier
@@ -88,20 +83,27 @@ class _Handler(BaseHTTPRequestHandler):
 def main() -> None:
     global _GUARDIAN
     ap = argparse.ArgumentParser()
-    ap.add_argument("--runtime", default=DEFAULT_RUNTIME, help="pure-Python runtime bundle (.json.gz)")
+    ap.add_argument("--runtime", default=None,
+                    help="model bundle path (default: env SV_GUARDIAN_RUNTIME, else the "
+                         "per-user cache, downloaded on first use)")
     ap.add_argument("--host", default="127.0.0.1")
     ap.add_argument("--port", type=int, default=8799)
     args = ap.parse_args()
 
-    if not os.path.exists(args.runtime):
+    runtime = args.runtime
+    if runtime is None:
+        try:
+            runtime = resolve_runtime(verbose=True)
+        except RuntimeError as exc:
+            raise SystemExit(str(exc))
+    if not os.path.exists(runtime):
         raise SystemExit(
-            f"model bundle not found: {args.runtime}\n"
+            f"model bundle not found: {runtime}\n"
             "  download guardian.runtime.json.gz from\n"
             "  https://github.com/Secure-Vector/securevector-guardian-model/releases\n"
-            "  then pass --runtime /real/path/to/guardian.runtime.json.gz\n"
-            "  (or set SV_GUARDIAN_RUNTIME)"
+            "  then pass --runtime /path/to/guardian.runtime.json.gz (or set SV_GUARDIAN_RUNTIME)"
         )
-    _GUARDIAN = PureGuardian.load(args.runtime)
+    _GUARDIAN = PureGuardian.load(runtime)
     server = ThreadingHTTPServer((args.host, args.port), _Handler)
     server.daemon_threads = True       # don't let lingering threads block shutdown
     server.timeout = 30

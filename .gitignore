@@ -8,10 +8,10 @@ dist/
 .eggs/
 .pytest_cache/
 
-# Trained artifacts + datasets — NEVER committed.
-# The model embeds internal (incl. professional) training signal and is
-# distributed as a release asset, not via source control. Datasets are
-# derived from private sources and must not leak.
+# Trained artifacts + datasets — NEVER committed. The model bundle is NOT
+# shipped in the wheel; it's a GitHub release asset that the package fetches
+# on first use and caches per-user. Datasets are derived from private sources
+# and must not leak; local training/export outputs live under models/.
 data/
 models/
 *.joblib

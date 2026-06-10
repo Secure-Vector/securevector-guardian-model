@@ -14,14 +14,9 @@ import json
 import os
 import sys
 
+from ._bundle import resolve_runtime
 from .model.pure_infer import PureGuardian
 from .serve import analyze
-
-DEFAULT_RUNTIME = os.environ.get(
-    "SV_GUARDIAN_RUNTIME",
-    os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-                 "models", "guardian.runtime.json.gz"),
-)
 
 # Color only when stdout is a TTY and NO_COLOR is unset (https://no-color.org).
 _COLOR = sys.stdout.isatty() and "NO_COLOR" not in os.environ
@@ -49,15 +44,21 @@ def _fmt(r: dict) -> str:
     return f"{_GRN}✓ benign{_RESET}  {_DIM}(score {1 - r['confidence']:.2f}){_RESET}"
 
 
-def _load(path: str) -> PureGuardian:
+def _load(path: str | None) -> PureGuardian:
+    # No explicit --runtime: resolve via env → dev checkout → per-user cache
+    # (downloading from the release on first use). Verbose so the one-time
+    # fetch isn't a silent pause.
+    if path is None:
+        try:
+            path = resolve_runtime(verbose=True)
+        except RuntimeError as exc:
+            sys.exit(str(exc))
     if not os.path.exists(path):
         sys.exit(
             f"model bundle not found: {path}\n"
             "  download guardian.runtime.json.gz from\n"
             "  https://github.com/Secure-Vector/securevector-guardian-model/releases\n"
-            "  then point Guardian at it:\n"
-            "    export SV_GUARDIAN_RUNTIME=/real/path/to/guardian.runtime.json.gz\n"
-            "  (or pass --runtime /real/path/to/guardian.runtime.json.gz)"
+            "  then: export SV_GUARDIAN_RUNTIME=/path/to/guardian.runtime.json.gz"
         )
     return PureGuardian.load(path)
 
@@ -65,7 +66,9 @@ def _load(path: str) -> PureGuardian:
 def main(argv: list | None = None) -> int:
     ap = argparse.ArgumentParser(prog="svguardian", description="Offline prompt/AI-attack detector")
     ap.add_argument("text", nargs="*", help="text to classify")
-    ap.add_argument("--runtime", default=DEFAULT_RUNTIME, help="path to the exported runtime bundle")
+    ap.add_argument("--runtime", default=None,
+                    help="path to the model bundle (default: env SV_GUARDIAN_RUNTIME, "
+                         "else the per-user cache, downloaded on first use)")
     ap.add_argument("--json", action="store_true", help="emit the full /analyze JSON")
     ap.add_argument("--demo", action="store_true", help="run the obfuscation showpiece")
     args = ap.parse_args(argv)
