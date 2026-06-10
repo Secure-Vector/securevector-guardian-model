@@ -38,11 +38,16 @@ Detects: `prompt_injection · jailbreak · data_exfiltration · pii · social_en
 
 ## Use it standalone
 
-**1. Install the runtime** (pure Python, zero ML dependencies):
+**1. Install the runtime** (pure Python, zero ML dependencies — the install pulls in nothing):
 
 ```bash
-pip install .
+pip install securevector-guardian-model
 ```
+
+> Until the first stable release lands on PyPI, grab the preview from Test PyPI:
+> `pip install --index-url https://test.pypi.org/simple/ securevector-guardian-model`
+
+The distribution name is `securevector-guardian-model`; the **import name is `svguardian`**.
 
 **2. Get the model bundle.** Download `guardian.runtime.json.gz` (~1.8 MB) from the [latest release](../../releases) and tell Guardian where it is — either pass `--runtime <path>` or set it once:
 
@@ -103,15 +108,18 @@ If you run [SecureVector AI Threat Monitor](https://github.com/secure-vector/ai-
 
 ```
 src/svguardian/
-  model/       pure_infer, export, infer      (zero-dep runtime + exporter)
+  model/       pure_infer                     (zero-dep runtime)
   window.py    long-document windowing
   decode.py    base64/hex decode-and-rescan
   serve.py     /analyze-shaped adapter
   server.py    stdlib loopback HTTP server
   cli.py       `svguardian` command
-  data/        build_dataset, loaders, augment (training pipeline — internal; not needed to run Guardian)
+  data/        training pipeline              (repo only — never published)
+  eval/        evaluation suites              (repo only — never published)
 tests/         behavioral + sklearn-parity tests
 ```
+
+The pip package contains the runtime modules only; the training pipeline, eval suites, and trained weights are never part of a published artifact.
 
 ## Design notes
 
