@@ -46,7 +46,7 @@ jobs:
       run: |
         TAG="${GITHUB_REF_NAME#v}"
         sed -i "s/^version = \".*\"/version = \"$TAG\"/" pyproject.toml
-        echo "Publishing svguardian==$TAG"
+        echo "Publishing securevector-guardian-model==$TAG"
 
     - name: Security scan before build
       run: |

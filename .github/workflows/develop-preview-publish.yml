@@ -49,19 +49,18 @@ jobs:
 
     - name: Generate development version
       run: |
-        # PEP 440 dev version: 0.0.1.devYYYYMMDDHHMMSS
+        # PEP 440 dev version: 0.0.1.devYYYYMMDDHHMMSS — the .dev suffix is
+        # what marks these as previews; same package name on Test PyPI as the
+        # real one on PyPI.
         TIMESTAMP=$(date +%Y%m%d%H%M%S)
         BASE_VERSION=$(grep -m1 '^version' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
         DEV_VERSION="${BASE_VERSION}.dev${TIMESTAMP}"
         echo "DEV_VERSION=$DEV_VERSION" >> $GITHUB_ENV
 
         sed -i "s/^version = \".*\"/version = \"$DEV_VERSION\"/" pyproject.toml
-        # Separate Test PyPI project so dev builds never collide with the
-        # real package name.
-        sed -i 's/^name = "svguardian"/name = "svguardian-dev"/' pyproject.toml
         sed -i 's/^description = "/description = "[DEVELOPMENT BUILD] /' pyproject.toml
 
-        echo "Publishing svguardian-dev==$DEV_VERSION (commit $(git rev-parse --short HEAD))"
+        echo "Publishing securevector-guardian-model==$DEV_VERSION (commit $(git rev-parse --short HEAD))"
 
     - name: Security scan before build
       run: |
@@ -104,7 +103,7 @@ jobs:
         sleep 30
         pip install --index-url https://test.pypi.org/simple/ \
             --extra-index-url https://pypi.org/simple/ \
-            "svguardian-dev==$DEV_VERSION"
+            "securevector-guardian-model==$DEV_VERSION"
         python -c "
         from svguardian.model.pure_infer import PureGuardian
         from svguardian.serve import analyze

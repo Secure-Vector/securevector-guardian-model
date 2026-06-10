@@ -125,8 +125,10 @@ Same flow as `securevector-ai-threat-monitor`:
 | Branch / event | What happens |
 |---|---|
 | PR → `develop` | CI runs the test suite (model-dependent suites skip — weights are never in source control) |
-| merge → `develop` | CI publishes a timestamped preview build **`svguardian-dev`** to **Test PyPI** |
-| GitHub Release (`vX.Y.Z` tag on `main`) | CI publishes **`svguardian`** to **PyPI** via trusted publishing |
+| merge → `develop` | CI publishes a timestamped `.dev` preview of **`securevector-guardian-model`** to **Test PyPI** |
+| GitHub Release (`vX.Y.Z` tag on `main`) | CI publishes **`securevector-guardian-model`** to **PyPI** via trusted publishing |
+
+The PyPI distribution name is `securevector-guardian-model`; the import name is `svguardian`.
 
 Day-to-day work lands on `develop`; `main` only moves by merging a release-ready `develop`. Published packages contain the **runtime only** — the training pipeline (`data/`, `eval/`, `model/train|compare|infer|export`) is stripped at build time and never ships, and the trained weights are distributed separately (vendored into the app / release assets).
 
