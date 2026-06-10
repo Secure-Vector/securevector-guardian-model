@@ -1,0 +1,26 @@
+name: Protection Probe (temporary)
+# Temporary test: attempts a direct push to main as github-actions[bot] —
+# a principal NOT in the branch-protection restriction list. Expected: REJECTED.
+on: workflow_dispatch
+
+permissions:
+  contents: write   # give the bot write access so the only barrier is branch protection
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with: { ref: main, fetch-depth: 0 }
+    - name: Attempt direct push to main as github-actions[bot]
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git commit --allow-empty -m "protection probe — this commit must never land"
+        echo "=== attempting push to main ==="
+        if git push origin HEAD:main; then
+          echo "RESULT: PUSH SUCCEEDED — PROTECTION FAILED!"
+          exit 1
+        else
+          echo "RESULT: PUSH REJECTED BY BRANCH PROTECTION (expected)"
+        fi
