@@ -1,0 +1,29 @@
+SecureVector Guardian
+Copyright 2026 SecureVector
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+------------------------------------------------------------------------------
+Originality
+------------------------------------------------------------------------------
+All source code in this repository is original work authored for SecureVector.
+The model is trained from scratch on SecureVector's own data; it does NOT
+incorporate, fine-tune, or distribute any third-party pretrained model weights
+(no DeBERTa, MiniLM, Model2Vec, Llama Guard, or other external checkpoints).
+No code, rules, or datasets were copied from third parties.
+
+------------------------------------------------------------------------------
+Third-party dependencies (used as libraries, not modified or vendored)
+------------------------------------------------------------------------------
+This software depends on the following open-source libraries, each used under
+its own permissive license:
+
+  - scikit-learn   BSD 3-Clause License
+  - NumPy          BSD 3-Clause License
+  - SciPy          BSD 3-Clause License
+  - PyYAML         MIT License
+  - joblib         BSD 3-Clause License
+
+These libraries are not redistributed in source form by this repository; they
+are installed independently via the Python package manager. Their respective
+license texts are available with their distributions.

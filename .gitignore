@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
+.eggs/
+.pytest_cache/
+
+# Trained artifacts + datasets — NEVER committed.
+# The model embeds internal (incl. professional) training signal and is
+# distributed as a release asset, not via source control. Datasets are
+# derived from private sources and must not leak.
+data/
+models/
+*.joblib
+*.json.gz
