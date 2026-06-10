@@ -1,6 +1,6 @@
 # SecureVector Guardian
 
-**A small, fast, fully-offline model that detects prompt & AI attacks — and returns the same response your app already understands.**
+**A lightweight, fast, fully-offline model that detects prompt & AI attacks — and returns the same response your app already understands.**
 
 Guardian is an original, from-scratch classifier (trained only on SecureVector's own data, with no third-party model weights). It catches the **obfuscated and paraphrased** attacks that literal regex rules miss — including threats **buried in long emails / PDFs / webpages** and hidden inside **base64 / hex-encoded** blobs — in well under a millisecond, on CPU, with no network.
 
