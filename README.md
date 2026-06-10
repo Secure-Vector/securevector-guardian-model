@@ -49,9 +49,6 @@ Detects: `prompt_injection · jailbreak · data_exfiltration · pii · social_en
 pip install securevector-guardian-model
 ```
 
-> Until the first stable release lands on PyPI, grab the preview from Test PyPI:
-> `pip install --index-url https://test.pypi.org/simple/ securevector-guardian-model`
-
 The distribution name is `securevector-guardian-model`; the **import name is `svguardian`**.
 
 **2. Get the model bundle.** Download `guardian.runtime.json.gz` (~1.8 MB) from the [latest release](https://github.com/Secure-Vector/securevector-guardian-model/releases) and tell Guardian where it is — either pass `--runtime <path>` or set it once:
@@ -105,7 +102,7 @@ Example response:
 
 ## Use it with SecureVector AI Threat Monitor
 
-If you run [SecureVector AI Threat Monitor](https://github.com/secure-vector/ai-threat-monitor), **you already have Guardian — nothing to install or wire up.** The monitor bundles the runtime and loads it automatically, so every `/analyze` call runs Guardian in parallel with the regex rules as a high-precision additive signal. To turn it off, set `SECUREVECTOR_ML_ENABLED=false`.
+If you run [SecureVector AI Threat Monitor](https://github.com/Secure-Vector/securevector-ai-threat-monitor), **you already have Guardian — nothing to install or wire up.** The monitor bundles the runtime and loads it automatically, so every `/analyze` call runs Guardian in parallel with the regex rules as a high-precision additive signal. To turn it off, set `SECUREVECTOR_ML_ENABLED=false`.
 
 ---
 

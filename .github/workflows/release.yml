@@ -1,8 +1,10 @@
 name: Release
 
 # Mirrors the ai-threat-monitor flow: publishing a GitHub Release (tag vX.Y.Z
-# on main) builds and publishes `svguardian` to PyPI via trusted publishing
-# (OIDC — no long-lived API key in this repo).
+# on main) builds and publishes `securevector-guardian-model` to PyPI via
+# trusted publishing (OIDC — no long-lived API key in this repo). The project
+# name comes from pyproject.toml's `name` field; only the version is stamped
+# from the release tag.
 
 on:
   release:
