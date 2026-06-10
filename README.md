@@ -7,7 +7,7 @@
 
 **A lightweight, fast, fully-offline model that detects prompt & AI attacks — and returns the same response securevector-app fully understands.**
 
-Guardian is an original, from-scratch classifier (trained only on SecureVector's own data, with no third-party model weights). It catches the **obfuscated and paraphrased** attacks that literal regex rules miss — including threats **buried in long emails / PDFs / webpages** and hidden inside **base64 / hex-encoded** blobs — in well under a millisecond, on CPU, with no network.
+Guardian is a classifier trained from scratch on SecureVector's own labeled corpus — no third-party datasets, no third-party model weights. It catches the **obfuscated and paraphrased** attacks that literal regex rules miss — including threats **buried in long emails / PDFs / webpages** and hidden inside **base64 / hex-encoded** blobs — in well under a millisecond, on CPU, with no network.
 
 Detects: `prompt_injection · jailbreak · data_exfiltration · pii · social_engineering · harmful_content · model_attack` (else `benign`).
 
@@ -144,4 +144,4 @@ Day-to-day work lands on `develop`; `main` only moves by merging a release-ready
 
 ## License
 
-See [LICENSE](LICENSE). Built only on permissively-licensed open-source libraries (scikit-learn, NumPy, SciPy — BSD; PyYAML, joblib — MIT). No third-party model weights; all weights are trained from scratch on SecureVector's own data.
+See [LICENSE](LICENSE) and [NOTICE](NOTICE). Built only on permissively-licensed open-source libraries (scikit-learn, NumPy, SciPy — BSD; PyYAML, joblib — MIT). No third-party model weights; all weights are trained from scratch on SecureVector's own labeled corpus. The zero-dependency runtime reimplements scikit-learn's documented TF-IDF behavior (attribution in NOTICE).

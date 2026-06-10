@@ -6,11 +6,20 @@ This product is licensed under the Apache License, Version 2.0 (see LICENSE).
 ------------------------------------------------------------------------------
 Originality
 ------------------------------------------------------------------------------
-All source code in this repository is original work authored for SecureVector.
-The model is trained from scratch on SecureVector's own data; it does NOT
+The source code in this repository was authored for SecureVector. The model is
+trained from scratch on SecureVector's own labeled corpus; it does NOT
 incorporate, fine-tune, or distribute any third-party pretrained model weights
 (no DeBERTa, MiniLM, Model2Vec, Llama Guard, or other external checkpoints).
-No code, rules, or datasets were copied from third parties.
+No third-party datasets are used.
+
+The pure-Python inference runtime (src/svguardian/model/pure_infer.py)
+reimplements the documented feature-extraction behavior of scikit-learn's
+TfidfVectorizer (word and char_wb n-gram analyzers, sublinear tf, l2
+normalization) so exported models score identically without an ML dependency.
+scikit-learn is (c) the scikit-learn developers, BSD 3-Clause License
+(https://github.com/scikit-learn/scikit-learn/blob/main/COPYING); this
+attribution covers any expressive similarity between the reimplementation and
+the original.
 
 ------------------------------------------------------------------------------
 Third-party dependencies (used as libraries, not modified or vendored)
