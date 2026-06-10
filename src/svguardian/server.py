@@ -93,6 +93,14 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=8799)
     args = ap.parse_args()
 
+    if not os.path.exists(args.runtime):
+        raise SystemExit(
+            f"model bundle not found: {args.runtime}\n"
+            "  download guardian.runtime.json.gz from\n"
+            "  https://github.com/Secure-Vector/securevector-guardian-model/releases\n"
+            "  then pass --runtime /real/path/to/guardian.runtime.json.gz\n"
+            "  (or set SV_GUARDIAN_RUNTIME)"
+        )
     _GUARDIAN = PureGuardian.load(args.runtime)
     server = ThreadingHTTPServer((args.host, args.port), _Handler)
     server.daemon_threads = True       # don't let lingering threads block shutdown

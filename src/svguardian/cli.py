@@ -51,8 +51,14 @@ def _fmt(r: dict) -> str:
 
 def _load(path: str) -> PureGuardian:
     if not os.path.exists(path):
-        sys.exit(f"runtime not found: {path}\n"
-                 "  export it first:  python -m svguardian.model.export")
+        sys.exit(
+            f"model bundle not found: {path}\n"
+            "  download guardian.runtime.json.gz from\n"
+            "  https://github.com/Secure-Vector/securevector-guardian-model/releases\n"
+            "  then point Guardian at it:\n"
+            "    export SV_GUARDIAN_RUNTIME=/real/path/to/guardian.runtime.json.gz\n"
+            "  (or pass --runtime /real/path/to/guardian.runtime.json.gz)"
+        )
     return PureGuardian.load(path)
 
 
