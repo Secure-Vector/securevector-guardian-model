@@ -16,3 +16,7 @@ data/
 models/
 *.joblib
 *.json.gz
+
+# Local analysis reports — methodology/eval detail, keep local-only
+RETRAIN_REPORT.md
+NN_VS_LOGREG.md
