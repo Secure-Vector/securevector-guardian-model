@@ -1,16 +1,22 @@
-"""Locate (and, on first use, fetch) the trained model bundle.
+"""Locate (and, only as a last resort, fetch) the trained model bundle.
 
-The bundle (``guardian.runtime.json.gz`` + its ``.sha256`` sidecar) is NOT
-shipped inside the wheel — it's published as a GitHub release asset. The first
-time Guardian needs it, this module downloads it to a per-user cache and
-verifies its SHA-256; every run after that is fully offline.
+The published wheel bundles the model (``guardian.runtime.json.gz`` + its
+``.sha256`` sidecar) inside ``svguardian/_runtime/`` — so a ``pip install`` is
+self-contained and fully offline, and ``pip install -U`` updates code and
+weights together. The GitHub-release download remains only as a fallback for
+source checkouts that were never built into a wheel.
 
 Resolution order (first hit wins):
 
 1. ``SV_GUARDIAN_RUNTIME`` env var — an explicit path you provide. Never
    downloads; ideal for air-gapped installs (pre-place the file, point here).
-2. A dev checkout's ``models/guardian.runtime.json.gz`` (repo-relative).
-3. The per-user cache — downloaded from the release on first use.
+2. A dev checkout's ``models/guardian.runtime.json.gz`` (repo-relative) — so a
+   freshly trained local model is used ahead of whatever a wheel bundled.
+3. The in-wheel bundle (``svguardian/_runtime/``) — present in every published
+   wheel; never touches the network.
+4. The per-user cache — populated by a previous release download.
+5. The GitHub release asset — downloaded once and cached (fallback for an
+   unbuilt source checkout).
 
 Stdlib only (urllib / hashlib / gzip) so the runtime keeps zero dependencies
 and works identically on macOS, Linux, and Windows.
@@ -22,6 +28,8 @@ import hashlib
 import os
 import sys
 import urllib.request
+
+from . import _runtime
 
 _BUNDLE_NAME = "guardian.runtime.json.gz"
 
@@ -119,6 +127,10 @@ def resolve_runtime(*, download: bool = True, verbose: bool = False) -> str:
     dev = _dev_models_path()
     if os.path.exists(dev):
         return dev
+
+    packaged = _runtime.bundled_path()
+    if packaged:
+        return packaged
 
     cached = os.path.join(cache_dir(), _BUNDLE_NAME)
     if os.path.exists(cached):

@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 # `svguardian` — distribution and import names are independent, same as
 # scikit-learn / sklearn.
 name = "securevector-guardian-model"
-version = "1.2.0"
+version = "1.3.0"
 description = "SecureVector Guardian — original, from-scratch offline threat-detection model for prompt & AI attacks"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -33,3 +33,12 @@ svguardian-server = "svguardian.server:main"
 [tool.setuptools.packages.find]
 where = ["src"]
 exclude = ["tests*"]
+
+[tool.setuptools.package-data]
+# The trained runtime is bundled INTO the wheel at build time (copied into
+# src/svguardian/_runtime/ by scripts/bundle_runtime.py just before `build`).
+# It is gitignored, so it is never in source control — but it IS in every
+# published wheel, which is what makes `pip install` offline and `pip -U`
+# update the model. setuptools reads package-data off disk at build time and
+# does not consult .gitignore, so the gitignored bundle still ships.
+"svguardian._runtime" = ["*.json.gz", "*.json.gz.sha256"]
