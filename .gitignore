@@ -8,15 +8,25 @@ dist/
 .eggs/
 .pytest_cache/
 
-# Trained artifacts + datasets — NEVER committed. The model bundle is NOT
-# shipped in the wheel; it's a GitHub release asset that the package fetches
-# on first use and caches per-user. Datasets are derived from private sources
-# and must not leak; local training/export outputs live under models/.
+# Trained artifacts + datasets — NEVER committed. Datasets are derived from
+# private sources and must not leak; local training/export outputs live under
+# models/. The model bundle is COPIED into src/svguardian/_runtime/ at build
+# time (scripts/bundle_runtime.py) so the wheel ships it — but that copy is a
+# build artifact and must never be committed, so it is ignored here too. The
+# wheel build reads it off disk regardless of .gitignore.
 data/
 models/
 *.joblib
 *.json.gz
+# Build-time runtime bundle injected into the package (weights + sidecar).
+/src/svguardian/_runtime/guardian.runtime.json.gz
+/src/svguardian/_runtime/guardian.runtime.json.gz.sha256
 
 # Local analysis reports — methodology/eval detail, keep local-only
 RETRAIN_REPORT.md
 NN_VS_LOGREG.md
+V1.3.0_PLAN.md
+LONG_DOC_FP_POLICY.md
+
+# Locally-authored gap-fill rules (uncommitted, original, clean-room)
+data/local_rules/

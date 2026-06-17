@@ -28,7 +28,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.pipeline import FeatureUnion, Pipeline
 
 from ..data.augment import augment
-from ..data.loaders import Example
+from ..data.loaders import Example, find_near_dup_leaks, key_hash
 
 BENIGN = "benign"
 
@@ -42,8 +42,39 @@ def _load(path: str) -> list[Example]:
     return out
 
 
+def load_manifest(path: str) -> set[str] | None:
+    """Load the frozen-test manifest (set of key hashes), or None if absent.
+    Lines are ``<sha256>\\t<text>``; ``#`` lines are comments."""
+    if not path or not os.path.isfile(path):
+        return None
+    hashes: set[str] = set()
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            hashes.add(line.split(maxsplit=1)[0])
+    return hashes or None
+
+
+def write_manifest(path: str, test: list[Example]) -> None:
+    """Persist the held-out test set as a content-addressed manifest so it stays
+    frozen across retrains (the data may grow; this set does not)."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+    with open(path, "w", encoding="utf-8") as fh:
+        fh.write("# SecureVector Guardian frozen held-out test manifest.\n")
+        fh.write("# <sha256(normalized_text)>\\t<json text> — ALWAYS test, NEVER train.\n")
+        for e in test:
+            # JSON-encode the text so embedded newlines never split a record.
+            fh.write(f"{key_hash(e.text)}\t{json.dumps(e.text)}\n")
+
+
 def build_pipeline() -> Pipeline:
     """Original feature pipeline: word + char TF-IDF -> logistic regression."""
+    # min_df=1 stays. B2 sweep tested min_df=2 (halves the bundle, holds obfuscation
+    # recall) but it REGRESSED long-doc benign FPR (0.0 -> 0.42): pruning rare
+    # features makes benign long-doc windows score above the window bar. The
+    # obfuscation gate alone missed it; the long-doc eval caught it. Rejected.
     word = TfidfVectorizer(
         analyzer="word", ngram_range=(1, 2), min_df=1, sublinear_tf=True,
         lowercase=True, strip_accents=None,  # keep accents: homoglyphs are signal
@@ -120,10 +151,14 @@ def main() -> None:
     ap.add_argument("--target-fpr", type=float, default=0.05)
     ap.add_argument("--seed", type=int, default=1337)
     ap.add_argument("--no-augment", action="store_true")
+    ap.add_argument("--test-manifest", default=None,
+                    help="frozen-test manifest path (default: <out_dir>/test_manifest.sha256)")
     args = ap.parse_args()
 
     real = _load(args.data)
     labels = [e.category for e in real]
+    out_dir = os.path.dirname(args.out) or "."
+    manifest_path = args.test_manifest or os.path.join(out_dir, "test_manifest.sha256")
 
     def _split(items, lbls, size):
         try:
@@ -133,14 +168,44 @@ def main() -> None:
             a, b = train_test_split(range(len(items)), test_size=size, random_state=args.seed)
         return a, b
 
-    # 3-way: train / val (threshold calibration) / test (final eval, real-only).
+    # Held-out TEST: frozen by content-hash manifest so it stays identical across
+    # retrains as the corpus grows (no silent re-split leakage). We still compute
+    # the stratified split first, then RECONCILE it to the manifest — so when the
+    # corpus is unchanged the partition (and thus the model) is bit-for-bit the
+    # same, while any NEW example that landed in "test" is moved back to the pool
+    # and any frozen example is guaranteed into test.
+    frozen = load_manifest(manifest_path)
     pool_idx, te_idx = _split(real, labels, args.test_size)
     pool = [real[i] for i in pool_idx]
-    pool_lbls = [labels[i] for i in pool_idx]
+    test = [real[i] for i in te_idx]
+    if frozen:
+        def _in(e):
+            return key_hash(e.text) in frozen
+        # Reconcile: frozen -> test, everything else -> pool. Order-preserving, so
+        # an UNCHANGED corpus yields the identical pool (and thus the same model);
+        # any new example that the stratified split put in test moves back to pool.
+        new_pool = [e for e in pool if not _in(e)] + [e for e in test if not _in(e)]
+        new_test = [e for e in test if _in(e)] + [e for e in pool if _in(e)]
+        pool, test = new_pool, new_test
+        missing = frozen - {key_hash(e.text) for e in test}
+        print(f"frozen test manifest: {manifest_path} ({len(frozen)} keys; "
+              f"{len(test)} matched, {len(missing)} missing from data)")
+    else:
+        write_manifest(manifest_path, test)
+        print(f"bootstrapped frozen test manifest -> {manifest_path} ({len(test)} keys)")
+
+    pool_lbls = [e.category for e in pool]
     tr_idx, va_idx = _split(pool, pool_lbls, args.val_size)
     train = [pool[i] for i in tr_idx]
     val = [pool[i] for i in va_idx]
-    test = [real[i] for i in te_idx]
+
+    # Leak guard: no train example may be an exact OR near-duplicate (char-3gram
+    # Jaccard >= 0.8) of any frozen-test example. Exact-key exclusion above stops
+    # identical rows; this stops authoring a paraphrase of a test row into train.
+    leaks = find_near_dup_leaks(train + val, test)
+    if leaks:
+        msg = "\n".join(f"  j={j:.2f}  train={tr[:60]!r}  test={te[:60]!r}" for tr, te, j in leaks[:10])
+        raise SystemExit(f"TRAIN/TEST LEAK: {len(leaks)} near-duplicate(s) of frozen test in train:\n{msg}")
 
     if not args.no_augment:
         synth = augment(train, seed=args.seed)

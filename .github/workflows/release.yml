@@ -57,6 +57,10 @@ jobs:
           echo "Potential secrets found in source code!"
           exit 1
         fi
+        # Guard the PRISTINE source tree: no joblib weights, no datasets, and no
+        # runtime committed to git. (The runtime IS bundled into the wheel — but
+        # by a later, deliberate step that runs after this scan; weights are
+        # never in source control, so this tree must be clean here.)
         if find . -name "*.joblib" -o -name "*.runtime.json.gz" -o -name "dataset*.jsonl" | grep -q .; then
           echo "Trained artifacts or datasets present in build tree!"
           exit 1
@@ -71,6 +75,18 @@ jobs:
         from svguardian import cli, server, window, decode
         print('All runtime imports successful (stdlib-only)')
         "
+
+    - name: Bundle model runtime into the wheel
+      # Inject the trained runtime (weights) into src/svguardian/_runtime/ so the
+      # published wheel is self-contained: `pip install` works offline and
+      # `pip install -U` ships new code + new weights together. The source
+      # checkout has no models/ (weights are gitignored), so this downloads the
+      # runtime from the GitHub release asset. Attach guardian.runtime.json.gz
+      # (+ .sha256) to the GitHub Release BEFORE publishing so this build embeds
+      # the weights you intend to ship. Deliberately runs AFTER the security
+      # scan: that scan guards the pristine source tree against stray artifacts;
+      # the wheel carries the runtime on purpose.
+      run: PYTHONPATH=src python scripts/bundle_runtime.py
 
     - name: Build package
       run: python -m build
