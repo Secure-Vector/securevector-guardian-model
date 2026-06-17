@@ -31,9 +31,10 @@ SecureVector-original — now enforced by automated tests.
   silently trusted).
 - **Adversarial red-team regression eval** over a frozen 1,955-example corpus
   (held out of training, verified by the leak guard) as a cross-release tripwire.
-- **Provenance CI wall.** Build-blocking tests enforce that every training example
-  comes from a SecureVector-internal source, that no public-dataset marker appears
-  in the training data, and that the package never imports a public-dataset loader.
+- **Provenance enforcement.** Automated tests enforce that every training example
+  comes from a SecureVector-internal source and that no public-dataset marker
+  appears in the training data — run during training, where the corpus lives — plus
+  a static guard, run in CI, that the package never imports a public-dataset loader.
 
 ### Changed
 - Retrained on the original corpus. **Precision held** (held-out false-positive
