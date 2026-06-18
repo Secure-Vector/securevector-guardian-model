@@ -7,6 +7,45 @@ Guardian is a small, fully offline, from-scratch threat-detection model that run
 as a **high-precision additive layer** above the regex rule engine. It is not the
 sole line of defense.
 
+## [1.4.0] — 2026-06-17
+
+Reduces false positives on benign **technical content** — source code, product
+and security documentation, and security-agent system prompts — that earlier
+versions could misflag as attacks because they share vocabulary with real
+threats (`secret`, `key`, `severity`, `model`, `injection`, `exfiltration`).
+
+### Fixed
+- **Benign source code, docs, and security system prompts no longer
+  false-positive.** Reading a source file (e.g. `def get_api_key(...)`,
+  `import React`), a product README/API reference, or a SOC-analyst system
+  prompt ("monitor for prompt injection and data exfiltration") previously
+  scored as an attack. New original benign training examples for these
+  content classes correct the over-defense.
+
+### Changed
+- Retrained on the original corpus with the added benign-technical examples.
+  **Held-out precision and false-positive rate are unchanged** from v1.3.0
+  (precision ≈ 0.97, held-out FPR ≈ 0.02; long-document benign FPR 0.0).
+  Obfuscation (leetspeak / homoglyph / spacing), buried-in-document, and
+  base64 / hex / URL-encoded robustness are maintained, and common direct
+  attacks (instruction-override, persona-jailbreak, credential exfiltration)
+  remain caught.
+
+### Notes
+- This is a precision improvement for the **additive** layer; it does not change
+  the regex rule engine. Content that quotes a **literal** attack payload
+  verbatim (e.g. a changelog that prints an injection string as an example) is
+  still flagged — that text is genuinely attack-shaped, and is best handled by
+  scoping enforcement to what an agent *executes* vs. what it merely *reads*.
+- Data & legal posture unchanged: 100% original training data, no third-party
+  datasets or pretrained weights; zero-dependency pure-Python runtime, byte-exact
+  to the trained model (parity Δ = 0).
+
+### Verification
+- Full test suite green (behavioral + sklearn↔pure-runtime parity, Δ = 0);
+  held-out FPR 0.02, long-document benign FPR 0.0; validated end-to-end in the
+  local app.
+
 ## [1.3.0] — 2026-06-16
 
 Adds encoded-payload and agent-era injection coverage, and hardens the model's

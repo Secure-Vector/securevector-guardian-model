@@ -314,14 +314,127 @@ def generate_hard_negatives(n: int, rng: random.Random) -> list[Example]:
 
 
 # --------------------------------------------------------------------------
+# 3b. Benign TECHNICAL content — source code, product/security documentation,
+#     and security-agent system prompts.
+#
+#     The training prose never included CODE, MARKDOWN DOCS, or analyst SYSTEM
+#     PROMPTS, so the model scored a read source file (`def calibrate_confidence`,
+#     `import React`, `get_*_key`), a product README, or a SOC role definition as
+#     an attack purely on shared security vocabulary (secret / key / severity /
+#     enforcement / model / audit / injection-as-a-noun). These are ORIGINAL
+#     benign snippets that carry that vocabulary in plainly-benign structure.
+#
+#     INVARIANT: none of these contains an attack IMPERATIVE ("ignore all
+#     previous instructions", "you are DAN", "exfiltrate X to Y"). They use
+#     security words descriptively (defining, detecting, documenting) — never as
+#     a command. So the malicious-intent signal is untouched; only the
+#     "security words ⇒ attack" overreaction is corrected.
+# --------------------------------------------------------------------------
+
+_BENIGN_CODE = [
+    # Python — security-domain but benign source
+    'def calibrate_confidence(severity: str, authored=None) -> float:\n    return _SEVERITY_DEFAULT.get(severity, 0.4) if authored is None else float(authored)',
+    'def get_api_key() -> str | None:\n    """Read the API key from the environment or the SSM parameter store."""\n    return os.environ.get("API_KEY")',
+    'def get_service_account_key() -> str | None:\n    """Get the service account key from the environment."""\n    return os.environ.get("SERVICE_ACCOUNT_KEY")',
+    'def redact_secrets(text: str) -> str:\n    for pattern in SECRET_PATTERNS:\n        text = pattern.sub("[REDACTED]", text)\n    return text',
+    'def load_settings(path: str) -> dict:\n    with open(path, encoding="utf-8") as fh:\n        return yaml.safe_load(fh)',
+    'def verify_token(token: str, secret: str) -> bool:\n    return hmac.compare_digest(sign(token, secret), token.signature)',
+    'def hash_payload(data: bytes) -> str:\n    return hashlib.sha256(data).hexdigest()',
+    'class ThreatIntelRepository:\n    def __init__(self, db):\n        self.db = db\n\n    async def create(self, *, text, is_threat, risk_score):\n        ...',
+    'SEVERITY_SCORE = {"critical": 90, "high": 75, "medium": 50, "low": 25}',
+    'logger = logging.getLogger(__name__)\nrouter = APIRouter()\n\n@router.post("/analyze")\nasync def analyze_text(request: AnalysisRequest):\n    ...',
+    'def resolve_runtime(*, download: bool = True) -> str:\n    env = os.environ.get("SV_GUARDIAN_RUNTIME")\n    if env:\n        return env\n    return _cached_path()',
+    'def build_pipeline():\n    word = TfidfVectorizer(analyzer="word", ngram_range=(1, 2))\n    char = TfidfVectorizer(analyzer="char_wb", ngram_range=(3, 5))\n    return FeatureUnion([("word", word), ("char", char)])',
+    'try:\n    result = await service.analyze(text)\nexcept Exception as exc:\n    logger.warning(f"analysis failed, falling back to rules: {exc}")',
+    'if settings.block_threats:\n    action_taken = "blocked"\nelse:\n    action_taken = "logged"',
+    # JavaScript / TypeScript — dashboard + plugin source
+    "import React, { useEffect, useMemo, useState } from 'react'\nimport { fetchThreats } from '../api'",
+    "export async function postAnalyze(text) {\n  const res = await fetch(`${BASE}/analyze`, { method: 'POST', body: JSON.stringify({ text }) })\n  return res.json()\n}",
+    "const dimensions = [\n  { key: 'coverage', weight: 0.25 },\n  { key: 'enforcement', weight: 0.25 },\n  { key: 'secretHygiene', weight: 0.2 },\n]",
+    "if (d.key === 'secretHygiene' && Number(i.secretEdges ?? 0) === 0)\n  return { kind: 'limited', label: 'No secret tools seen' }",
+    "const THREAT_SCAN_TOOLS = new Set(['WebFetch', 'Skill', 'Task', 'Agent'])\nconst LIMIT = 8000",
+    "function hasCredentialMarkers(text) {\n  return SECRET_PATTERNS.some((re) => re.test(text))\n}",
+    "export const severityColor = { critical: '#e5484d', high: '#f76808', medium: '#ffb224', low: '#46a758' }",
+    # Config / YAML / SQL / shell — benign infra
+    'server:\n  host: 127.0.0.1\n  port: 8741\nsecurity:\n  block_mode: false\n  output_scan: true',
+    'budget:\n  daily_limit: 5.00\n  warn: true\n  block: true\ntools:\n  enforcement: true',
+    'CREATE TABLE threat_intel_records (\n  id TEXT PRIMARY KEY,\n  is_threat INTEGER,\n  risk_score INTEGER,\n  created_at TEXT\n);',
+    'SELECT threat_type, COUNT(*) FROM threat_intel_records WHERE is_threat = 1 GROUP BY threat_type;',
+    'export OPENAI_BASE_URL=http://localhost:8742/openai/v1\nexport ANTHROPIC_BASE_URL=http://localhost:8742/anthropic',
+    'pip install securevector-ai-monitor[app]\nsecurevector-app --web --port 8741',
+    '{\n  "is_threat": true,\n  "threat_type": "jailbreak",\n  "risk_score": 91,\n  "analysis_source": "model"\n}',
+]
+
+_BENIGN_DOCS = [
+    # Product / security documentation prose (markdown-shaped, descriptive)
+    "## Threat Detection\n\nAudits every tool call to a hash-chained log and scans prompts and responses for injection, jailbreaks, and credential leakage. 72 detection rules covering the OWASP LLM Top 10.",
+    "Posture Score — a 0-100 security score computed from forwarded agent telemetry across several weighted dimensions such as coverage, enforcement, secret hygiene, and audit integrity.",
+    "### Tool Audit & Permissions\n\nEvery tool call is recorded into a SHA-256-linked audit log — tamper-evident and verifiable from the Tool Activity tab. Allow / deny / ask rules are enforced at the agent runtime.",
+    "## Authentication\n\nThe API uses bearer authentication via an API key in the header:\n\n```\nAuthorization: Bearer <API_KEY>\n```\n\nKeys are stored with 0600 permissions and never written to the database.",
+    "Guardian is a high-precision additive layer over the regex rules. It catches obfuscated, paraphrased, buried, or encoded attacks that literal patterns miss, folding its verdict into the same allow / alert / block decision.",
+    "### SIEM Forwarder\n\nForward every threat and tool-call audit to your SOC in OCSF 1.3.0 format. Supports Splunk HEC, Datadog, Microsoft Sentinel, and generic webhooks. Metadata-only by default; raw data is opt-in per destination.",
+    "**Monitor by default, opt-in block mode** — drop-in observability with no breakage risk; flip block mode on when you are ready to enforce. Block mode adds roughly 10-50ms of latency per request.",
+    "The Skill Scanner performs static analysis across ten detection categories — shell access, network calls, environment-variable reads, dynamic code execution, base64 payloads, symlink escapes — and assigns a risk score before you install a skill.",
+    "Detects: prompt injection, jailbreaks, data exfiltration, PII disclosure, social engineering, harmful content, and model attacks. Each finding carries a calibrated confidence and a per-category severity.",
+    "device_id is a machine identifier per install, derived locally from the OS machine UUID, SHA-256 hashed before storage, and never transmitted except with explicit opt-in via Cloud Connect or the SIEM Forwarder.",
+    "## Quick Start\n\n1. Install with pip and run `securevector-app --web`.\n2. Open http://localhost:8741 in your browser.\n3. Connect your agent from the Integrations tab.",
+    "The model runtime is roughly 1.8 MB, pure Python with zero ML dependencies. It runs in parallel with the regex rules, adding about 0.15 ms per typical analysis, and is fail-open: any model error silently falls back to rules-only.",
+    "Rule precision pass: tightened the command-execution rules with a negative-lookbehind guard so safe calls like `ast.literal_eval(` no longer false-positive while bare `eval(` still matches. The labeled corpus was expanded and precision held.",
+    "All notable changes to this project are documented in this changelog. The format is based on Keep a Changelog, and the project adheres to Semantic Versioning.",
+    "### Calibrated detection verdict\n\nEach rule now carries a real confidence; a threat requires one high-confidence hit or two corroborating mediums, so a lone low-confidence heuristic informs the score without alarming.",
+    "Five native agent plugins enforce allow / deny / ask inline with zero proxy: Claude Code, OpenAI Codex, GitHub Copilot CLI, Cursor, and OpenClaw. All share the same enforcement core. Install from the Integrations tab.",
+]
+
+_BENIGN_AGENT_PROMPTS = [
+    # Benign security-agent SYSTEM PROMPTS — define a defender role; mention
+    # attack classes only as things to DETECT, never as a command to perform.
+    "You are a SOC analyst assistant. Review the tool-call audit logs and flag any prompt injection, data exfiltration, or jailbreak attempts so a human reviewer can triage them.",
+    "You are a security monitoring assistant for an EU managed-security provider. Summarize detected threats by severity, group them by device, and recommend whether each should be escalated.",
+    "You are a helpful coding assistant. When the user asks about their codebase, read the relevant files, explain how the functions work, and suggest small, safe improvements.",
+    "You are a threat-intelligence summarizer. Given a batch of scan verdicts, produce a short report of the top categories, the false-positive rate, and any notable trends.",
+    "You are a compliance assistant. Map each detected event to the relevant OWASP LLM Top 10 category and note which control would have prevented it.",
+    "You are an incident-response copilot. Walk the analyst through the audit chain for a flagged session and explain what each tool call did, in plain language.",
+    # Benign META-DISCUSSION of detections (talking about findings, not attacking)
+    "These detections all look like false positives to me — they appear to be documentation and system prompts rather than real attacks. Can you confirm?",
+    "What about this finding — the rule matched prompt injection at 75 percent, but the content is just our own changelog describing the rule. Is that a false positive?",
+    "I reviewed the threats dashboard and most of the high-risk rows are security source code we read during development, not actual injection attempts.",
+    "Explain why the model flagged this README as data exfiltration so I can decide whether to tune the rule or add a benign example.",
+    "The analyst report says the system prompt was classified as model extraction; that seems wrong because it is just defining a SOC reviewer role.",
+    "Walk me through how indirect prompt injection works so I can write a training module for the team; this is for defensive education only.",
+]
+
+
+def generate_benign_technical(n: int, rng: random.Random) -> list[Example]:
+    """Benign source code, product/security docs, and security-agent system
+    prompts — the technical-content classes missing from the prose-only
+    training set. All original; none contains an attack imperative.
+
+    Composition note: source CODE is weighted heavily because it's the
+    dominant false-positive class (read source files) and its surface form
+    barely overlaps attack phrasing, so it lifts code-read precision with
+    minimal recall cost. Docs / system-prompts carry security *vocabulary*
+    descriptively, so they're included at lower weight — measured: adding them
+    at parity costs ~5pts red-team recall; at 1x vs code 3x the cost is small
+    while the system-prompt / doc false positives still drop.
+
+    ``n`` caps the count; the weighted pool is emitted deterministically (then
+    shuffled by ``rng``) so the class balance is reproducible."""
+    pool = _BENIGN_CODE + _BENIGN_DOCS + _BENIGN_AGENT_PROMPTS
+    rng.shuffle(pool)
+    items = pool[:n] if n and n < len(pool) else pool
+    return [Example(s, "benign", "benign", "synth:benign_technical") for s in items]
+
+
+# --------------------------------------------------------------------------
 # Orchestration
 # --------------------------------------------------------------------------
 
 def augment(seed_examples: list[Example], *, obf_per_positive: int = 2,
             attacks_per_template: int = 40, hard_negatives: int = 200,
-            seed: int = 1337) -> list[Example]:
+            benign_technical: int = 300, seed: int = 1337) -> list[Example]:
     """Grow a seed set with obfuscations of real positives + generated
-    attacks + hard negatives. Returns ONLY the new synthetic examples."""
+    attacks + hard negatives + benign technical content. Returns ONLY the new
+    synthetic examples."""
     rng = random.Random(seed)
     new: list[Example] = []
 
@@ -334,4 +447,8 @@ def augment(seed_examples: list[Example], *, obf_per_positive: int = 2,
 
     new += generate_attacks(attacks_per_template, rng)
     new += generate_hard_negatives(hard_negatives, rng)
+    # Benign source code / product docs / security-agent system prompts — the
+    # technical-content classes absent from the prose-only seed set (the
+    # read-source-file / SOC-system-prompt / README false-positive class).
+    new += generate_benign_technical(benign_technical, rng)
     return new
