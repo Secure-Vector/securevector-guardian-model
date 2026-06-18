@@ -9,7 +9,7 @@
 
 Guardian is a classifier trained from scratch on SecureVector's own labeled corpus — no third-party datasets, no third-party model weights. It catches the **obfuscated and paraphrased** attacks that literal regex rules miss — including threats **buried in long emails / PDFs / webpages** and hidden inside **base64 / hex / URL-encoded** blobs — in well under a millisecond, on CPU, with no network.
 
-See [CHANGELOG.md](CHANGELOG.md) for release notes (latest: **v1.3.0**).
+See [CHANGELOG.md](CHANGELOG.md) for release notes (latest: **v1.4.0**).
 
 Detects: `prompt_injection · jailbreak · data_exfiltration · pii · social_engineering · harmful_content · model_attack` (else `benign`).
 
